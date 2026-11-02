@@ -4,7 +4,7 @@
 set -euo pipefail
 
 APP="${APP:-http://localhost:3000}"
-SAMPLE="${SAMPLE_DOC_URL:-https://docs.google.com/document/d/1iBJmpxa9yOmNk_6sU9aayQzHc-r31p3N7Q5RCfVPBXY/edit}"
+SAMPLE="${SAMPLE_DOC_URL:-https://docs.google.com/document/d/1u9lP5RTnm3He3JDq1HMAjfFW_VLspGV-1lm6CZh4s50/edit}"
 OUT="docs/screenshots"
 PW="playwright-cli -s=docshots-readme"
 mkdir -p "$OUT"

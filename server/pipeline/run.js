@@ -94,6 +94,7 @@ async function downloadAndExtract(docId, rec) {
     const finishStructure = () => {
       if (structureDone) return;
       structureDone = true;
+      parser.endBody();
       const s = parser.stats;
       rec.done('structure', `Found ${plural(s.sections, 'section')}, ${plural(s.entries, 'numbered entry', 'numbered entries')}, ${plural(s.imageRefs, 'image reference')}`, s);
     };
@@ -182,7 +183,8 @@ async function downloadAndExtract(docId, rec) {
   }
 }
 
-function groupAndCheck(parser, images, failedImages, rec) {
+function groupAndCheck(parser, images, failedImages, rec, preset) {
+  const shot = preset === 'warframe' ? 'screenshot' : 'image';
   rec.start('group', 'Matching every image to its section and entry in document order');
   const sections = parser.sections.filter(s => s.entries.length || s.notes.length);
   let imageCount = 0, multi = 0;
@@ -205,7 +207,7 @@ function groupAndCheck(parser, images, failedImages, rec) {
     for (const e of s.entries) {
       e.flags = [];
       const label = `${s.title} #${e.number ?? '?'}`;
-      if (e.kind === 'item' && e.images.length === 0) { e.flags.push('No screenshot'); counts.empty++; examples.push(`${label}: no screenshot`); }
+      if (e.kind === 'item' && e.images.length === 0) { e.flags.push(`No ${shot}`); counts.empty++; examples.push(`${label}: no ${shot}`); }
       for (const img of e.images) {
         img.flags = [];
         if (!img.hash) {
@@ -223,7 +225,7 @@ function groupAndCheck(parser, images, failedImages, rec) {
   }
   const total = counts.empty + counts.duplicate + counts.missing + counts.small;
   const summary = total
-    ? [counts.empty && plural(counts.empty, 'entry without a screenshot', 'entries without a screenshot'), counts.duplicate && plural(counts.duplicate, 'duplicate image'), counts.missing && plural(counts.missing, 'missing image'), counts.small && plural(counts.small, 'tiny image')].filter(Boolean).join(', ')
+    ? [counts.empty && plural(counts.empty, `entry without a ${shot}`, `entries without a ${shot}`), counts.duplicate && plural(counts.duplicate, 'duplicate image'), counts.missing && plural(counts.missing, 'missing image'), counts.small && plural(counts.small, 'tiny image')].filter(Boolean).join(', ')
     : 'Nothing to flag';
   (total ? rec.warn : rec.done)('check', summary, { counts, examples: examples.slice(0, 12) });
   return sections;
@@ -326,7 +328,7 @@ export async function startRun({ link, owner, preset = 'plain', readMapNames = t
       rec.done('link', `Doc ID ${docId.slice(0, 6)}…${docId.slice(-4)}`);
       const { parser, images, failedImages, title } = await downloadAndExtract(docId, rec);
       if (title) await q('update runs set title = $1 where id = $2', [title, run.id]);
-      const sections = groupAndCheck(parser, images, failedImages, rec);
+      const sections = groupAndCheck(parser, images, failedImages, rec, preset);
       await save(run.id, sections, rec);
       if (preset === 'warframe' && readMapNames) await readMaps(sections, rec);
       else {

@@ -3,7 +3,10 @@
 // reference definition at the end, so structure is known before the first image byte arrives.
 
 const HEADING = /^(#{1,6})\s*(.*)$/;
-const NUMBERED = /^( *)(\d+)[.)]\s+(.*)$/;
+// "1. ", plus the hand-typed forms the export escapes or squeezes: "1\\." and "3.![image]".
+const NUMBERED = /^( *)(\d{1,4})\\?[.)](?=\s|$|!\[)\s*(.*)$/;
+// A short plain line right before a list that starts at 1 is that list's heading, even without a heading style.
+const PLAIN_TITLE = /^[^.!?:;,]{1,48}$/;
 const BULLET = /^( *)[*+-]\s+(.*)$/;
 const IMAGE_REF = /!\[[^\]]*\]\[([^\]]+)\]|!\[[^\]]*\]\((\S+?)\)/g;
 const DEFINITION = /^\[([^\]]+)\]:\s*<?data:(image\/[\w+.-]+);base64,/;
@@ -27,7 +30,25 @@ export class DocParser {
     this.definitionsSeen = 0;
     this.lastDefinitionClosed = true;
     this.bulletCounter = 0;
+    this.pendingTitle = null;
   }
+
+  // A plain line that turned out not to be a heading goes back to being a note.
+  flushPending() {
+    if (this.pendingTitle == null) return;
+    this.ensureSection().notes.push(this.pendingTitle);
+    this.pendingTitle = null;
+  }
+
+  startSection(title, fromHeading = false) {
+    this.section = { title, notes: [], entries: [], fromHeading };
+    this.sections.push(this.section);
+    this.entry = null;
+    this.bulletCounter = 0;
+  }
+
+  // Call once the body has ended (the first image definition, or the end of a doc with no images).
+  endBody() { this.flushPending(); }
 
   get stats() {
     const entries = this.sections.flatMap(s => s.entries);
@@ -65,18 +86,16 @@ export class DocParser {
 
   // Returns true once the body is over and image definitions have started.
   bodyLine(raw) {
-    if (DEFINITION.test(raw)) { this.inDefinitions = true; return true; }
+    if (DEFINITION.test(raw)) { this.endBody(); this.inDefinitions = true; return true; }
     const line = raw.replace(/\r$/, '');
     if (!line.trim()) return false;
 
     let m;
     if ((m = HEADING.exec(line))) {
-      const title = unescape(m[2]).trim();
+      const title = unescape(m[2]).replace(/\*\*/g, '').trim();
       if (!title) return false; // Docs exports empty headings as a bare "#"
-      this.section = { title, notes: [], entries: [] };
-      this.sections.push(this.section);
-      this.entry = null;
-      this.bulletCounter = 0;
+      this.flushPending();
+      this.startSection(title, true);
       return false;
     }
 
@@ -85,6 +104,15 @@ export class DocParser {
     if (numbered || bullet) {
       const indent = (numbered ?? bullet)[1].length;
       const { refs, text } = splitImages(numbered ? numbered[3] : bullet[2]);
+      // ...unless a real heading sits right above it with nothing under it yet ("# Mirage", "200w", "1."):
+      // then the short line is that heading's note.
+      const underFreshHeading = this.section?.fromHeading && this.section.entries.length === 0;
+      if (indent === 0 && this.pendingTitle != null && (bullet || numbered[2] === '1') && !underFreshHeading) {
+        this.startSection(this.pendingTitle);
+        this.pendingTitle = null;
+      } else if (indent === 0) {
+        this.flushPending();
+      }
       if (indent === 0) {
         const number = numbered ? numbered[2] : String(++this.bulletCounter);
         this.entry = this.addEntry('item', number, text);
@@ -105,14 +133,22 @@ export class DocParser {
       this.attach(this.entry, refs);
       return false;
     }
+    // Images on their own line under a numbered item belong to it (people often press Enter after "2.").
+    if (refs.length && !text && this.entry) {
+      this.attach(this.entry, refs);
+      return false;
+    }
+    this.flushPending();
     if (refs.length) {
       const loose = this.addEntry('loose', null, text);
       this.attach(loose, refs);
       this.entry = null;
       return false;
     }
-    this.ensureSection().notes.push(text);
     this.entry = null;
+    const plain = text.replace(/\*\*/g, '').trim();
+    if (PLAIN_TITLE.test(plain)) this.pendingTitle = plain;
+    else this.ensureSection().notes.push(text);
     return false;
   }
 

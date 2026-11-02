@@ -21,7 +21,9 @@ Moving **347 screenshots** by hand meant saving each one, renaming it, and keepi
 together. DocShots now does it from the doc's link.
 
 It isn't only for games. Any doc made of **headings, numbered lists and images** works: a trip log, a recipe
-collection, a bug report with screenshots.
+collection, a bug report with screenshots. It also copes with hand-made docs: a short plain line before a list
+counts as its heading, numbers can be typed by hand, and an image on the line after its number still belongs to
+that entry.
 
 ---
 
@@ -161,4 +163,4 @@ I chose the task, designed the product, supplied the real doc and checked every 
 was written with Claude (Anthropic) as a pair programmer, following my direction. The Markdown-export approach,
 the streaming parser, the map reader and the interface were each tested on my real doc before being kept.
 
-Sample doc photos: Wikimedia Commons (CC0 and public domain), credited in the doc itself.
+The "Use the Sample Doc" button runs a small public doc (13 entries, 12 images) in about 10 seconds.

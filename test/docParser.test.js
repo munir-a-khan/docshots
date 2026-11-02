@@ -67,3 +67,18 @@ test('stats count sections, entries and image references', () => {
   const { p } = parse('# A\n1. ![][image1]![][image2]\n2. s\n# B\n1. ![][image3]');
   assert.deepEqual(p.stats, { sections: 2, entries: 3, looseGroups: 0, imageRefs: 3 });
 });
+
+// A hand-made doc: plain-text lines as headings, numbers typed by hand, images on the line after the number.
+test('plain-line headings, hand-typed numbers and images on the next line', () => {
+  const { p } = parse(['Jade  ', '1\\.  ', '![][image1]  ', '2\\.   ', '![][image2]  ', '3.![][image3]  ', '', 'Mirage', '', '1. 202  ', '   ![][image4]', '', 'Titania', '', '1. ![][image5]  ', '2.'].join('\n'));
+  p.endBody();
+  assert.deepEqual(p.sections.map(s => [s.title, s.entries.map(e => e.refs.length)]), [['Jade', [1, 1, 1]], ['Mirage', [1]], ['Titania', [1, 0]]]);
+  assert.equal(p.sections[1].entries[0].text, '202');
+});
+
+test('a plain line that is not followed by a list stays a note', () => {
+  const { p } = parse('# Log\nShort note\nA longer sentence that explains things, with punctuation.\n1. ![][image1]\n2. ![][image2]\nTotal: 2');
+  p.endBody();
+  assert.equal(p.sections.length, 1);
+  assert.deepEqual(p.sections[0].notes, ['Short note', 'A longer sentence that explains things, with punctuation.', 'Total: 2']);
+});
