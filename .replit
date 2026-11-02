@@ -12,3 +12,6 @@ run = ["npm", "start"]
 [[ports]]
 localPort = 3000
 externalPort = 80
+
+[env]
+SAMPLE_DOC_URL = "https://docs.google.com/document/d/1iBJmpxa9yOmNk_6sU9aayQzHc-r31p3N7Q5RCfVPBXY/edit"
