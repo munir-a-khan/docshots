@@ -11,22 +11,31 @@ mkdir -p "$OUT"
 
 $PW open "$APP/#/" >/dev/null
 $PW resize 1440 900 >/dev/null
-$PW delete-data >/dev/null
+# A fresh visitor: no cookie means no earlier jobs.
+$PW cookie-clear >/dev/null
+$PW localstorage-clear >/dev/null
 $PW goto "$APP/#/" >/dev/null
 
 # Start a job on the sample doc, the way a visitor would.
 $PW fill "#link" "$SAMPLE" >/dev/null
+# PRESET=warframe picks the Warframe arbitration preset (frame portraits and map names).
+if [ "${PRESET:-plain}" = "warframe" ]; then
+  $PW eval "() => [...document.querySelectorAll('input[name=preset]')][1].click()" >/dev/null
+fi
 $PW eval "() => document.querySelector('form.start button.primary').click()" >/dev/null
 
-# Wait for the job to finish (the report's primary action appears when it has).
-for _ in $(seq 1 60); do
-  done=$($PW eval "() => !!document.querySelector('a.button.primary[href*=\"/queue\"]')" --raw 2>/dev/null || echo false)
-  [ "$done" = "true" ] && break
+# Wait for the job to finish, asking the app's own API (the visitor's newest job).
+job=""
+for _ in $(seq 1 90); do
+  state=$($PW eval "async () => { const r = await (await fetch('/api/runs')).json(); return r.length ? r[0].id + ':' + r[0].status : '' }" --raw 2>/dev/null | tr -d '"' || true)
+  job="${state%%:*}"
+  [ "${state##*:}" = "done" ] && break
   sleep 2
 done
-job=$($PW eval "() => location.hash.match(/run\\/(\\d+)/)[1]" --raw)
+[ -n "$job" ] || { echo "no job started" >&2; exit 1; }
+echo "job $job finished"
 
-shot() { $PW goto "$APP/#/run/$job/$1" >/dev/null; sleep 2; $PW screenshot --filename="$OUT/$2.png" >/dev/null; echo "saved $OUT/$2.png"; }
+shot() { $PW goto "$APP/#/run/$job/$1" >/dev/null; $PW reload >/dev/null; sleep 3; $PW screenshot --filename="$OUT/$2.png" >/dev/null; echo "saved $OUT/$2.png"; }
 shot report job-report
 shot queue paste-queue
 shot review review

@@ -26,7 +26,14 @@ export default function App() {
     return () => window.removeEventListener('hashchange', on);
   }, []);
   // The job list feeds the switcher, the breadcrumb and the history; refresh it whenever the screen changes.
-  useEffect(() => { api.runs().then(setRuns).catch(() => setRuns([])); }, [route.runId, route.screen]);
+  const [jobsChanged, setJobsChanged] = useState(0);
+  useEffect(() => { api.runs().then(setRuns).catch(() => setRuns([])); }, [route.runId, route.screen, jobsChanged]);
+  // A job that finishes while you watch gets its title then, so the top bar refreshes the list.
+  useEffect(() => {
+    const on = () => setJobsChanged(n => n + 1);
+    window.addEventListener('docshots:job-finished', on);
+    return () => window.removeEventListener('docshots:job-finished', on);
+  }, []);
 
   const current = runs?.find(r => r.id === route.runId);
   const screenName = route.runId ? SCREENS[route.screen] : route.screen === 'history' ? 'Past jobs' : 'New job';
@@ -240,7 +247,7 @@ function RunView({ runId, screen }) {
     es.onmessage = msg => {
       const payload = JSON.parse(msg.data);
       if (payload.type === 'event') setLiveEvents(evs => [...evs, payload.event]);
-      if (payload.type === 'finished') { es.close(); load(); }
+      if (payload.type === 'finished') { es.close(); load(); window.dispatchEvent(new Event('docshots:job-finished')); }
     };
     // If the live stream drops, keep the screen up to date by polling instead.
     es.onerror = () => { es.close(); poll = setInterval(load, 3000); };

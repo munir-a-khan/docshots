@@ -27,9 +27,14 @@ collection, a bug report with screenshots.
 
 ## What it looks like
 
+The screenshots below are DocShots running on my own log: 248 Warframe arbitration runs and 347 screenshots,
+with a section per character. In the game, an *arbitration* is a long survival mission, and each "run" in the
+list is one completed mission with its end-of-mission screenshots.
+
 ### 1. Start a job
 
-Paste a public Google Doc link. Pick "Any doc", or the Warframe preset for game logs.
+Paste a public Google Doc link. Pick "Any doc", or the Warframe preset for game logs. The panel on the right
+shows a real message from your last job.
 
 ![Starting a job](docs/screenshots/new-job.png)
 
