@@ -1,7 +1,7 @@
 {
   "name": "docshots",
   "version": "1.0.0",
-  "description": "Turn a Google Doc of screenshots into labeled images ready to paste into Discord",
+  "description": "Copy every image out of a Google Doc, in order, and paste it into Discord, a forum or any app one at a time",
   "scripts": {
     "test": "node --test test/",
     "server": "node server/index.js",
@@ -28,5 +28,8 @@
     "concurrently": "^10.0.6",
     "vite": "^6.4.5"
   },
-  "type": "module"
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  }
 }
