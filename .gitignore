@@ -1,0 +1,17 @@
+*.traineddata
+.agents
+.claude
+.claude/design-md
+.claude/skills
+.env
+.playwright
+.playwright-cli
+.taste-skill
+CLAUDE.md
+data
+dist
+graphify-out
+node_modules
+proto/arbys.txt
+proto/solNodes.json
+skills-lock.json

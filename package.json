@@ -1,0 +1,32 @@
+{
+  "name": "docshots",
+  "version": "1.0.0",
+  "description": "Turn a Google Doc of screenshots into labeled images ready to paste into Discord",
+  "scripts": {
+    "test": "node --test test/",
+    "server": "node server/index.js",
+    "dev": "concurrently -k -n api,web \"node --watch server/index.js\" \"vite\"",
+    "build": "vite build",
+    "start": "node server/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.14",
+    "@replit/object-storage": "^1.0.0",
+    "archiver": "^7.0.1",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sharp": "^0.35.5",
+    "tesseract.js": "^7.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^10.0.6",
+    "vite": "^6.4.5"
+  },
+  "type": "module"
+}
