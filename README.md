@@ -1,92 +1,159 @@
 # DocShots
 
-Copy every image out of a Google Doc, in order, and paste it into Discord, a forum or any app one at a time,
-with a live "How it works" diagram of every job. Built for Replit's internship challenge, "Build an App that
-Shows Its Work".
+**Get every image out of a Google Doc, in order, and paste it anywhere: Discord, a forum, any chat.**
 
-## The task it takes off my plate
+Google Docs won't let you copy images out into most apps. Give DocShots a doc's link and it hands every image
+back in order, one paste at a time, with each entry's images kept together.
 
-Images in a Google Doc can't be copied out into Discord or most other apps. I keep a log of game runs as a doc
-(a heading per character, a numbered list, one to three screenshots per entry), and the community I submit to
-only accepts images posted directly, numbered. Moving 347 screenshots by hand meant saving each one, renaming it
-and keeping each entry's images together. DocShots does that from the doc's link: it pulls every image out in
-order, keeps each numbered entry's images together, flags what's missing, and gives me a paste queue that puts
-the next text line or image on the clipboard with one key.
+![The paste queue: the message being built, with the next piece framed in red](docs/screenshots/paste-queue.png)
 
-It works for any doc built from headings, numbered lists and images. A Warframe preset adds what my own use
-needs: the character portrait for each section, and the map name read from each end-of-mission screenshot.
+Built for Replit's internship challenge, *Build an App that Shows Its Work*: every job is drawn live as a
+floor plan of its steps, with real timings, and can be replayed.
+
+---
+
+## Why I built it
+
+I log runs from a game in a Google Doc: a heading per character, a numbered list underneath, and one to three
+screenshots per entry. The community I submit to only accepts images posted directly, numbered.
+
+Moving **347 screenshots** by hand meant saving each one, renaming it, and keeping every entry's images
+together. DocShots now does it from the doc's link.
+
+It isn't only for games. Any doc made of **headings, numbered lists and images** works: a trip log, a recipe
+collection, a bug report with screenshots.
+
+---
+
+## What it looks like
+
+### 1. Start a job
+
+Paste a public Google Doc link. Pick "Any doc", or the Warframe preset for game logs.
+
+![Starting a job](docs/screenshots/new-job.png)
+
+### 2. Watch it work
+
+Each step is a room on a floor plan. The dashed wall is the server; Google Docs and your browser sit outside
+it. Rooms light up as their events arrive, with what they did and how long it took. A failed step turns red
+and says what to do next.
+
+![The job report: a floor plan of the job's steps](docs/screenshots/job-report.png)
+
+Replay any job at 1×, 10×, 50× or one event at a time. Select a room to see its log and the data it produced.
+
+### 3. Paste
+
+The paste queue builds one message at a time: the text line, then each image. Press **Space** to copy the next
+piece, paste it where you're posting, repeat. Your place is saved, so you can stop at message 50 and pick up at
+51 on another device.
+
+### 4. Fix what needs a look
+
+The review screen opens on the entries that need attention: no image, a duplicate, an image missing from the
+export.
+
+![Reviewing entries that need a look](docs/screenshots/review.png)
+
+---
 
 ## How a job works
 
-| Step | Where | What it does |
+| Step | Where it runs | What it does |
 | --- | --- | --- |
-| Check link | Browser → server | Pulls the doc ID out of any Docs link. The link is saved before anything can fail. |
-| Download the doc | Google Docs | Streams `export?format=md`, gzip-compressed. Retries twice with backoff; a private doc stops with sharing instructions; over 400 MB stops with a clear message. |
-| Read structure | Server | Headings → sections, `N.` lines → entries, indented lines and nested items → that entry's notes and images. Runs while the download continues. |
-| Extract images | Server → storage | Up to four images decode at once while the download streams on. Images seen in an earlier job are recognised from a hash of their base64 text, without decoding. |
-| Group entries | Server | Maps each image to its section and entry in document order. |
-| Check | Server | Flags entries with no image, duplicate images, images missing from the export, tiny images. |
-| Save | Postgres | Sections, entries and images in a few batched inserts. |
-| Suggest map names | Public game data | Warframe preset only: OCRs the map line and ranks it against the 88 arbitration maps. Each screenshot is read once ever. |
+| **Check link** | Browser → server | Reads the doc ID from any Docs link. The link is saved before anything can fail. |
+| **Download the doc** | Google Docs | Streams the doc's Markdown export, gzip-compressed. |
+| **Read structure** | Server | Headings become sections, numbered lines become entries. Runs while the download continues. |
+| **Extract images** | Server → storage | Decodes four images at once. Images from earlier jobs are recognised without decoding. |
+| **Group entries** | Server | Puts every image under its section and entry, in document order. |
+| **Check** | Server | Flags entries with no image, duplicate images and missing images. |
+| **Save** | Postgres | Writes sections, entries and images in a few batched inserts. |
+| **Suggest map names** | Public game data | Warframe preset only: reads the map name on each end screen. |
 
-Every step emits start, progress, done, warn, fail or retry events. They stream to the page over server-sent
-events and are stored, so the replay shows exactly what happened, at 1×, 10×, 50× or event by event. Nothing in
-the job is slowed down to make it watchable.
+Every step sends start, progress, done, warning, failure and retry events. They stream to the page over
+server-sent events and are stored, so a replay shows exactly what happened. Nothing is slowed down to make it
+watchable.
 
-## Failure handling
+---
 
-- **Doc not shared or link wrong:** the download step turns red and says how to share the doc. The link stays
-  saved, and "Try Again" reruns it.
-- **Network errors, stalls (60 s without data) or a cut-off download:** retried twice with backoff, each retry
-  shown on the diagram. A cut-off download is detected because every image definition ends with `>`. Images
-  already saved are kept and reused on the retry.
-- **Images the export lacks, or that fail to decode:** flagged on the entry; the job continues.
-- **Public game data unavailable:** map suggestions are skipped with a note; everything else finishes.
-- **Too many jobs:** two running and twenty per hour per browser, with a message saying what to do.
+## When things go wrong
 
-## Numbers from my own doc
+| What happens | What DocShots does |
+| --- | --- |
+| The doc isn't shared, or the link is wrong | Stops at the download step and says how to share it. The link stays saved; **Try Again** reruns it. |
+| The network drops or Google stalls for 60 s | Retries twice with backoff. Each retry shows on the diagram. Images already saved are kept. |
+| The download is cut off part-way | Detected (every image in the export ends with `>`), then retried. |
+| An image is missing or won't decode | Flagged on its entry. The rest of the job carries on. |
+| Public game data is unavailable | Map suggestions are skipped with a note. Everything else finishes. |
+| Too many jobs at once | Two running and twenty an hour per browser, with a message saying what to do. |
 
-248 entries, 347 PNG screenshots, 139 MB of Markdown (110 MB gzipped on the wire).
+**Try it:** paste a link to a doc that isn't shared, or any link that isn't a Google Doc.
+
+---
+
+## Speed, measured on a real doc
+
+My own log: **248 entries, 347 screenshots, 139 MB** of Markdown (110 MB gzipped on the wire).
 
 | | First job | Same doc again |
 | --- | --- | --- |
-| Download (Google takes ~36 s before the first byte) | 70 s | 72 s |
-| Images decoded | 347 | 2 (337 recognised without decoding) |
-| Map suggestions | 13.1 s | 0.5 s (313 cached readings) |
+| Download | 70 s | 72 s |
+| Images decoded | 347 | **2** (337 recognised without decoding) |
+| Map suggestions | 13.1 s | **0.5 s** |
 
-The download is the floor: Google builds the export, then sends it at about 2.7 MB/s, and parsing keeps pace
-with it. The zip, docx and html exports fail on a doc this size (HTTP 413 or timeout), which is why the job
-streams Markdown.
+The download is the floor. Google takes about 36 s to prepare an export this size, then sends it at about
+2.7 MB/s, and parsing keeps pace with it. Memory stays at about four images however big the doc is.
+
+The zip, Word and HTML exports fail on a doc this size (HTTP 413 or a timeout), which is why DocShots streams
+the Markdown export.
+
+---
 
 ## Privacy and safety
 
-- Each browser gets an anonymous id cookie, and jobs, images and progress are only visible to the browser that
-  started them.
-- Image links inside a doc are fetched only over https from public hosts; private and local addresses are refused.
-- Jobs older than 30 days are deleted, and stored images no job uses are removed.
-- A Discord webhook address, if used, stays in the browser tab and is never stored.
+- **Your jobs are yours.** Each browser gets an anonymous id, and jobs, images and progress are only visible to
+  the browser that started them.
+- **No requests to private networks.** Image links inside a doc are fetched only over https from public hosts.
+- **Nothing kept forever.** Jobs older than 30 days are deleted, along with images no job uses.
+- **Webhooks stay in your tab.** A Discord webhook address, if you use one, is never stored.
+
+---
 
 ## Run it
 
 ```bash
 npm install
 npm run build
-npm start          # http://localhost:3000
-npm test           # parser, matching and link tests
+npm start      # http://localhost:3000
 ```
 
-Without `DATABASE_URL` it uses an embedded PGlite database in `data/`; without an Object Storage bucket it
-stores images in `data/blobs/`.
+```bash
+npm test       # parser, matching and link tests
+```
 
-## On Replit
+Locally it needs nothing else: without `DATABASE_URL` it uses an embedded PGlite database, and without Object
+Storage it keeps images on disk, both in `data/`.
 
-1. Add a **PostgreSQL database** (sets `DATABASE_URL`).
-2. Add **App Storage** (Object Storage) so images survive redeploys (sets `REPLIT_DEFAULT_BUCKET_ID`).
-3. Set `SAMPLE_DOC_URL` to the public sample doc to show "Use the Sample Doc".
-4. Publish as a **Reserved VM**: jobs keep running after the request that started them, which Autoscale pauses.
+### On Replit
+
+1. Add a **PostgreSQL** database.
+2. Add **App Storage**, so images survive redeploys.
+3. Publish as a **Reserved VM**. Jobs keep running after the request that started them, which Autoscale would
+   pause.
+
+The sample doc link is set in `.replit` as `SAMPLE_DOC_URL`.
+
+---
+
+## Built with
+
+React and Vite · Node and Express · Postgres (PGlite locally) · sharp · tesseract.js · server-sent events
 
 ## What I wrote, and what AI wrote
 
-I designed the product, chose the task, supplied the real doc and checked every result against it. The code
-was written with Claude (Anthropic) as a pair programmer, from my direction: the Markdown-export approach, the
-streaming parser, the map reader and the interface were each tested against my real doc before being kept.
+I chose the task, designed the product, supplied the real doc and checked every result against it. The code
+was written with Claude (Anthropic) as a pair programmer, following my direction. The Markdown-export approach,
+the streaming parser, the map reader and the interface were each tested on my real doc before being kept.
+
+Sample doc photos: Wikimedia Commons (CC0 and public domain), credited in the doc itself.
